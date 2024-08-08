@@ -1,0 +1,87 @@
+--create warehouse 
+CREATE WAREHOUSE IF NOT EXISTS my_test_warehouse
+    WAREHOUSE_SIZE = 'X-SMALL'
+    WAREHOUSE_TYPE = 'STANDARD'
+    AUTO_SUSPEND = 10
+    AUTO_RESUME = TRUE
+    MIN_CLUSTER_COUNT = 1
+    MAX_CLUSTER_COUNT = 1
+    MAX_CONCURRENCY_LEVEL = 3;
+
+    alter warehouse my_test_warehouse resume;
+
+    use warehouse my_test_warehouse;
+    
+    CREATE DATABASE demo;
+    use demo;
+    
+    
+create or replace table demo_customer_info (            
+ mob string,
+ company string,
+ name string,
+ extra string,
+ leave string
+ );
+
+ show tables;
+
+ 
+ --need to create integration
+ 
+ CREATE OR REPLACE STORAGE integration aws_s3_integration
+type =external_stage
+storage_provider='s3'
+enabled=true
+storage_aws_role_arn= 'arn:aws:iam::042321958533:role/snowflake_s3_role' 
+storage_allowed_locations =('s3://snowflake-success/');
+
+
+
+show integrations;
+
+DESC integration aws_s3_integration;
+
+
+
+
+
+--need to create fileformat
+create or replace file format demo_format
+ type='CSV'
+ field_delimiter=','
+ skip_header=1;
+ --now need to create stage-
+ 
+ create or replace stage demo_aws_stage
+ storage_integration = aws_s3_integration
+ file_format = demo_format
+ url = 's3://snowflake-success/';
+
+ list @demo_aws_stage;
+
+--copy data into custer_info
+COPY INTO demo_customer_info (mob, company, name, extra, leave)
+FROM @demo_aws_stage/customer_info.csv
+FILE_FORMAT = (TYPE = CSV);
+
+list @demo_aws_stage;
+select * from demo_customer_info;
+--done your integration-
+truncate demo_customer_info;
+
+select count(*) from demo_customer_info;
+
+list ~demo_customer_info;
+
+--2--create snowepip
+create or replace pipe test_pipe_test1 auto_ingest=true as
+ copy into demo_customer_info (mob, company, name, extra, leave) 
+ from @demo_aws_stage
+ FILE_FORMAT = (TYPE = CSV);
+ 
+ show pipes;
+
+ -- create event on s3 bucket using SQS channel ARN given by snowflake 
+ list @demo_aws_stage;
+ select * from demo_customer_info;
