@@ -1,0 +1,162 @@
+ -- Create a new database
+CREATE DATABASE IF NOT EXISTS media_org;
+USE DATABASE media_org;
+
+-- Editorial team table
+CREATE OR REPLACE TABLE media_org.public.editorial_team (
+    id INT,
+    article_title VARCHAR,
+    content TEXT,
+    embargo_date DATE,
+    topic VARCHAR
+);
+
+-- Insert data into the editorial_team table
+INSERT INTO media_org.public.editorial_team (id, article_title, content, embargo_date, topic)
+VALUES
+(1, 'Big Launch', 'Details about the new product launch.', CURRENT_DATE() + INTERVAL '10 days','others'),
+(2, 'Interview with CEO', 'Exclusive interview details.', CURRENT_DATE() - INTERVAL '5 days','others'),
+(3, 'Fashion Week', 'Highlights from the fashion week.', CURRENT_DATE() + INTERVAL '15 days','Fashion'),
+(4, 'Tech Innovations', 'New technologies in 2024.', CURRENT_DATE() + INTERVAL '30 days', 'Tech'),
+(5, 'Market Trends', 'Analysis of current market trends.', CURRENT_DATE() - INTERVAL '10 days','Market Trends'),
+(6, 'Global Politics', 'Updates on global political scenes.', CURRENT_DATE() - INTERVAL '20 days','Global Politics'),
+(7, 'Climate Change', 'Impact of climate change on economies.', CURRENT_DATE() + INTERVAL '5 days','others'),
+(8, 'Education Reforms', 'Changes in the education system.', CURRENT_DATE() - INTERVAL '3 days','others'),
+(9, 'Healthcare Advances', 'New discoveries in healthcare.', CURRENT_DATE() + INTERVAL '25 days','Healthcare'),
+(10, 'Startup Ecosystem', 'Growth of startups in new markets.', CURRENT_DATE() - INTERVAL '30 days','Startup Ecosystem');
+
+-- Create mapping table for editorial access
+CREATE OR REPLACE TABLE media_org.public.editor_topic_mapping (
+    editor_type VARCHAR,
+    topic VARCHAR
+);
+
+-- Insert data into the mapping table
+INSERT INTO media_org.public.editor_topic_mapping (editor_type, topic)
+VALUES
+('EDITOR', 'others'),
+('EDITOR_TECH', 'Tech'),
+('EDITOR_HEALTHCARE', 'Healthcare'),
+('EDITOR_FASHION', 'Fashion'),
+('EDITOR_POLITICS', 'Global Politics'),
+('EDITOR_MARKET_TRENDS', 'Market Trends'),
+('EDITOR_STARTUP_ECOSYSTEM', 'Startup Ecosystem');
+
+INSERT INTO media_org.public.editor_topic_mapping (editor_type, topic)
+VALUES
+('ACCOUNTADMIN', 'others');
+
+SELECT * FROM EDITOR_TOPIC_MAPPING;
+
+-- Create a Row Access Policy that uses the mapping table
+CREATE OR REPLACE ROW ACCESS POLICY media_org.public.editorial_team_access_policy AS (article_topic VARCHAR) RETURNS BOOLEAN ->
+    EXISTS (
+        SELECT 1
+        FROM media_org.public.editor_topic_mapping
+        WHERE editor_type = CURRENT_ROLE() AND topic = article_topic
+    );
+
+
+-- Apply the updated row access policy to the editorial_team table
+ALTER TABLE media_org.public.editorial_team DROP ALL ROW ACCESS POLICIES;
+ALTER TABLE media_org.public.editorial_team ADD ROW ACCESS POLICY media_org.public.editorial_team_access_policy ON (topic);
+
+SHOW TABLES;
+
+SELECT * FROM media_org.public.editorial_team;
+
+-- Create specific editor roles
+CREATE ROLE IF NOT EXISTS editor;
+CREATE ROLE editor_tech;
+CREATE ROLE editor_healthcare;
+CREATE ROLE editor_fashion;
+CREATE ROLE editor_politics;
+CREATE ROLE editor_market_trends;
+CREATE ROLE editor_startup_ecosystem;
+
+-- Grant the base editor role usage and select permissions
+GRANT USAGE ON DATABASE media_org TO ROLE editor;
+GRANT USAGE ON SCHEMA media_org.public TO ROLE editor;
+GRANT USAGE ON WAREHOUSE compute_wh TO ROLE EDITOR;
+GRANT SELECT ON TABLE media_org.public.editorial_team TO ROLE editor;
+
+GRANT USAGE ON DATABASE media_org TO ROLE editor_tech;
+GRANT USAGE ON SCHEMA media_org.public TO ROLE editor_tech;
+GRANT SELECT ON TABLE media_org.public.editorial_team TO ROLE editor_tech;
+GRANT USAGE ON WAREHOUSE compute_wh TO ROLE editor_tech;
+
+GRANT USAGE ON DATABASE media_org TO ROLE editor_healthcare;
+GRANT USAGE ON SCHEMA media_org.public TO ROLE editor_healthcare;
+GRANT SELECT ON TABLE media_org.public.editorial_team TO ROLE editor_healthcare;
+GRANT USAGE ON WAREHOUSE compute_wh TO ROLE editor_healthcare;
+
+GRANT USAGE ON DATABASE media_org TO ROLE editor_fashion;
+GRANT USAGE ON SCHEMA media_org.public TO ROLE editor_fashion;
+GRANT SELECT ON TABLE media_org.public.editorial_team TO ROLE editor_fashion;
+GRANT USAGE ON WAREHOUSE compute_wh TO ROLE editor_fashion;
+
+GRANT USAGE ON DATABASE media_org TO ROLE editor_politics;
+GRANT USAGE ON SCHEMA media_org.public TO ROLE editor_politics;
+GRANT SELECT ON TABLE media_org.public.editorial_team TO ROLE editor_politics;
+GRANT USAGE ON WAREHOUSE compute_wh TO ROLE editor_politics;
+
+GRANT USAGE ON DATABASE media_org TO ROLE editor_market_trends;
+GRANT USAGE ON SCHEMA media_org.public TO ROLE editor_market_trends;
+GRANT SELECT ON TABLE media_org.public.editorial_team TO ROLE editor_market_trends;
+GRANT USAGE ON WAREHOUSE compute_wh TO ROLE editor_market_trends;
+
+GRANT USAGE ON DATABASE media_org TO ROLE editor_startup_ecosystem;
+GRANT USAGE ON SCHEMA media_org.public TO ROLE editor_startup_ecosystem;
+GRANT SELECT ON TABLE media_org.public.editorial_team TO ROLE editor_startup_ecosystem;
+GRANT USAGE ON WAREHOUSE compute_wh TO ROLE editor_startup_ecosystem;
+
+-- Grant the specific editor roles to the base editor role
+GRANT ROLE editor_tech, editor_healthcare, editor_fashion, editor_politics, editor_market_trends, editor_startup_ecosystem TO ROLE editor;
+
+REVOKE ROLE editor_tech, editor_healthcare, editor_fashion, editor_politics, editor_market_trends, editor_startup_ecosystem FROM ROLE editor;
+
+-- Grant Roles to Users
+GRANT ROLE editor TO USER anantshukla1;
+
+-- Query as editor with access to other articles
+USE ROLE editor;
+SELECT * FROM media_org.public.editorial_team;
+
+-- Query as editor with access to tech articles
+USE ROLE editor_tech;
+SELECT * FROM media_org.public.editorial_team;
+-- Expected to see rows with topic 'Tech'
+
+-- Query as editor with access to healthcare articles
+USE ROLE editor_healthcare;
+SELECT * FROM media_org.public.editorial_team;
+-- Expected to see rows with topic 'Healthcare'
+
+-- Query as editor with access to fashion articles
+USE ROLE editor_fashion;
+SELECT * FROM media_org.public.editorial_team;
+
+-- Query as editor with access to politics articles
+USE ROLE editor_politics;
+SELECT * FROM media_org.public.editorial_team;
+
+-- Query as editor with access to market trends articles
+USE ROLE editor_market_trends;
+SELECT * FROM media_org.public.editorial_team;
+
+-- Query as editor with access to startup ecosystem articles
+USE ROLE editor_startup_ecosystem;
+SELECT * FROM media_org.public.editorial_team;
+
+-- Drop roles
+USE ROLE ACCOUNTADMIN;
+DROP ROLE IF EXISTS editor;
+DROP ROLE IF EXISTS editor_tech;
+DROP ROLE IF EXISTS editor_healthcare;
+DROP ROLE IF EXISTS editor_fashion;
+DROP ROLE IF EXISTS editor_politics;
+DROP ROLE IF EXISTS editor_market_trends;
+DROP ROLE IF EXISTS editor_startup_ecosystem;
+
+-- Drop Database
+DROP DATABASE MEDIA_ORG;
