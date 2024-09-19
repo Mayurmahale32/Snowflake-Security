@@ -1,0 +1,75 @@
+USE DATABASE financial_org;
+
+--CREATE SCHEMA
+CREATE SCHEMA IF NOT EXISTS piidata2;
+SHOW SCHEMAS;
+
+--CREATE TABLE
+CREATE TABLE IF NOT EXISTS pii_data_info(
+customer_id INT AUTOINCREMENT,
+full_name VARCHAR(50),
+email VARCHAR(100),
+phone_number VARCHAR(15),
+snn VARCHAR(11)
+);
+CREATE TABLE IF NOT EXISTS pii_data_transaction(
+transaction_id INT AUTOINCREMENT,
+customer_id INT,
+transaction_date DATE,
+ammount DECIMAL(10,2),
+ammount_balance DECIMAL(10,2)
+);
+SHOW TABLES;
+
+--CREATE TAGS
+CREATE TAG IF NOT EXISTS pii_data_tag;
+CREATE TAG IF NOT EXISTS financial_data_tag;
+SHOW TAGS;
+
+--APPLY TAG TO SENSITIVE DATA COLUMNS
+ALTER TABLE pii_data_info MODIFY COLUMN snn SET TAG pii_data_tag = 'confidential';
+ALTER TABLE pii_data_transaction MODIFY COLUMN ammount_balance SET TAG financial_data_tag = 'sensitive';
+
+--CREATE MASKING POLICY 
+CREATE MASKING POLICY IF NOT EXISTS snn_masking AS (val STRING) RETURNS STRING ->
+CASE WHEN CURRENT_ROLE() IN ('MEDIA_MANAGER') THEN val
+ELSE CONCAT('XXX-XX-', RIGHT(val,4)) END;
+
+CREATE MASKING POLICY IF NOT EXISTS account_balance_masking AS (val DECIMAL) RETURNS DECIMAL ->
+CASE WHEN CURRENT_ROLE() IN ('ACCOUNTING') THEN val
+ELSE '12345' END;
+
+SHOW MASKING POLICIES;
+
+--INSERT INTO TABLE 
+
+INSERT INTO pii_data_info (full_name, email, phone_number, snn)
+VALUES
+('wahidshaikh','wahid@gmail','123-456-7890','123-422-134'),
+('sahikshaikh','sahil@gmail','123-456-7890','123-422-134'),
+('waisshaikh','wais@gmail','123-456-7890','123-422-134');
+
+INSERT INTO pii_data_transaction (customer_id, transaction_date, ammount, ammount_balance)
+VALUES 
+(1, CURRENT_DATE(), 200.00, 1200.50),
+(1, CURRENT_DATE(), -50.00, 1200.50),
+(2, CURRENT_DATE(), 150.00, 1200.50);
+
+SELECT * FROM pii_data_info;
+SELECT * FROM PII_DATA_TRANSACTION;
+
+ALTER TABLE pii_data_info MODIFY COLUMN snn SET MASKING POLICY snn_masking;
+ALTER TABLE pii_data_transaction MODIFY COLUMN ammount_balance SET MASKING POLICY account_balance_masking;
+
+--CLEANING UP
+DROP TABLE IF EXISTS pii_data_info;
+DROP TABLE IF EXISTS pii_data_transaction;
+DROP TAG IF EXISTS pii_data_tag;
+DROP TAG IF EXISTS financial_data_tag;
+DROP MASKING POLICY IF EXISTS snn_masking ;
+DROP MASKING POLICY IF EXISTS account_balance_masking;
+DROP SCHEMA IF EXISTS piidata2;
+SHOW SCHEMAS;
+SHOW TAGS;
+SHOW TABLES;
+SHOW MASKING POLICIES;
